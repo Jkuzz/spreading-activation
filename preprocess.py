@@ -1,29 +1,30 @@
 import os.path
+import sys
 from urllib.parse import quote_plus
 
 from imdb import Cinemagoer
 from rdflib import Graph, URIRef, Literal, RDF
 from timeit import default_timer as timer
 
-
 ML_VERSION = '1m'
 ML_LOCATION = f'./movielens/ml-{ML_VERSION}/movies.dat'
-TTL_FILE = f'./movielens/ml-{ML_VERSION}/imdb-{ML_VERSION}.ttl'
+TTL_FILE = f'./movielens/ml-{ML_VERSION}/imdb-{ML_VERSION}_2.ttl'
 
 
-def read_movielens(path):
+def read_movielens(path, limit=sys.maxsize):
     """Reads the movielens dataset
     :param path: to the saved dataset
+    :param limit: limit number of movies fetched (mostly for debug)
     :returns list of tuples (ml_id, ml_title)"""
     found_movies = []
     with open(path, 'r') as f:
-        # i = 0
+        i = 0
         for line in f:
             movie_id, movie_title, _ = line.strip().split('::')
             found_movies.append((movie_id, movie_title))
-            # i += 1
-            # if i >= 10:
-            #     return found_movies
+            i += 1
+            if i >= limit:
+                return found_movies
     return found_movies
 
 
@@ -37,17 +38,22 @@ def fetch_movies(movies, log=True):
     time_started = timer()
 
     for i, movie in enumerate(movies):
-        searched_movie = ia.search_movie(movie[1])   # search_movie returns an incomplete dict, this is to get id
+        searched_movie = ia.search_movie(movie[1])  # search_movie returns an incomplete dict, this is to get id
         if len(searched_movie) == 0:  # Cinemagoer didn't find a match
             name_without_pars = movie[1][:movie[1].find('(')]  # Often does find if parentheses are removed
             print(f'\tCould find movie \"{movie[1]}\" in IMDB, looking for \"{name_without_pars}\"')
-            searched_movie = ia.search_movie(name_without_pars)   # trying again
+            searched_movie = ia.search_movie(name_without_pars)  # trying again
             if len(searched_movie) == 0:
                 print(f'\tCould not find movie \"{name_without_pars}\" in IMDB, skipped')
                 continue
             print(f"\tAdded \"{name_without_pars}\"")
 
-        fetched_movie = ia.get_movie(searched_movie[0].movieID)    # must use get_movie to get complete info
+        try:
+            fetched_movie = ia.get_movie(searched_movie[0].movieID)  # must use get_movie to get complete info
+        except Exception as e:
+            print("Exception during fetching movie, skipping")
+            print(e)
+            continue
         fetched_movies[int(movie[0])] = fetched_movie
 
         if log and i >= last_logged + logging_frequency:  # Log fetching progress
@@ -65,18 +71,26 @@ def rdf_serialise(movies):
     """
     g = Graph()
     concepts_to_add = [
-        {'key': 'director', 'predicate': 'https://schema.org/Director', 'uri_prefix': 'https://www.imdb.com/name/nm', 'obj_type': 'https://schema.org/Person'},
-        {'key': 'composer', 'predicate': 'https://schema.org/Composer', 'uri_prefix': 'https://www.imdb.com/name/nm', 'obj_type': 'https://schema.org/Person'},
-        {'key': 'writer', 'predicate': 'https://schema.org/Writer', 'uri_prefix': 'https://www.imdb.com/name/nm', 'obj_type': 'https://schema.org/Person'},
-        {'key': 'producer', 'predicate': 'https://schema.org/Producer', 'uri_prefix': 'https://www.imdb.com/name/nm', 'obj_type': 'https://schema.org/Person'},
-        {'key': 'editor', 'predicate': 'https://schema.org/Editor', 'uri_prefix': 'https://www.imdb.com/name/nm', 'obj_type': 'https://schema.org/Person'},
-        {'key': 'cast', 'predicate': 'https://schema.org/Actor', 'uri_prefix': 'https://www.imdb.com/name/nm', 'obj_type': 'https://schema.org/Person'},
-        {'key': 'genres', 'predicate': 'https://schema.org/Genre', 'uri_prefix': 'https://www.imdb.com/genre/', 'obj_type': 'https://schema.org/Genre'},
-        {'key': 'languages', 'predicate': 'https://schema.org/inLanguage', 'uri_prefix': 'https://www.imdb.com/langs/', 'obj_type': 'https://schema.org/Language'},
-        {'key': 'countries', 'predicate': 'https://schema.org/countryOfOrigin', 'uri_prefix': 'https://www.imdb.com/countries/', 'obj_type': 'https://schema.org/Country'},
+        {'key': 'director', 'predicate': 'https://schema.org/Director', 'uri_prefix': 'https://www.imdb.com/name/nm',
+         'obj_type': 'https://schema.org/Person'},
+        {'key': 'composer', 'predicate': 'https://schema.org/Composer', 'uri_prefix': 'https://www.imdb.com/name/nm',
+         'obj_type': 'https://schema.org/Person'},
+        {'key': 'writer', 'predicate': 'https://schema.org/Writer', 'uri_prefix': 'https://www.imdb.com/name/nm',
+         'obj_type': 'https://schema.org/Person'},
+        {'key': 'producer', 'predicate': 'https://schema.org/Producer', 'uri_prefix': 'https://www.imdb.com/name/nm',
+         'obj_type': 'https://schema.org/Person'},
+        {'key': 'editor', 'predicate': 'https://schema.org/Editor', 'uri_prefix': 'https://www.imdb.com/name/nm',
+         'obj_type': 'https://schema.org/Person'},
+        {'key': 'cast', 'predicate': 'https://schema.org/Actor', 'uri_prefix': 'https://www.imdb.com/name/nm',
+         'obj_type': 'https://schema.org/Person'},
+        {'key': 'genres', 'predicate': 'https://schema.org/Genre', 'uri_prefix': 'https://www.imdb.com/genre/',
+         'obj_type': 'https://schema.org/Genre'},
+        {'key': 'languages', 'predicate': 'https://schema.org/inLanguage', 'uri_prefix': 'https://www.imdb.com/langs/',
+         'obj_type': 'https://schema.org/Language'},
+        {'key': 'countries', 'predicate': 'https://schema.org/countryOfOrigin',
+         'uri_prefix': 'https://www.imdb.com/countries/', 'obj_type': 'https://schema.org/Country'},
     ]
-
-    for movie in movies.values():
+    for ml_oid, movie in movies.items():
         try:
             if not movie['title']:
                 print('\tMovie missing title, skipping')
@@ -89,6 +103,7 @@ def rdf_serialise(movies):
                 {'predicate': RDF.type, 'object': URIRef('https://schema.org/Movie')},
                 {'predicate': URIRef('https://schema.org/Name'), 'object': Literal(movie['title'])},
                 {'predicate': URIRef('https://schema.org/datePublished'), 'object': Literal(movie['year'])},
+                {'predicate': URIRef('https://example.org/ml-OID'), 'object': Literal(ml_oid)},
             ]
             for info in basic_movie_info:
                 g.add((  # Create basic movie predicates
