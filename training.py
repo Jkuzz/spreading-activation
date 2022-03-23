@@ -5,10 +5,7 @@ from spreading_activation import Spreader
 
 
 def main():
-    data = pd.read_csv('fold_1/t.csv')
-    uid = 171
-    movies_to_activate = data[(data['UID'] == uid) & (data['rating'] >= 3)]['OID']
-    cfg = {  # TODO: train this
+    cfg = {  # TODO: tune this
         'activation_threshold': 0.2,  # Minimum activation a node needs to spread
         'decay_factor': 0.1,  # What part of the activation will survive the spread
         'edge_weights': {  # Proportional amount of activation that will flow along the edge
@@ -23,8 +20,12 @@ def main():
             'https://schema.org/inLanguage': 0.3,
         }
     }
-    k = 50
     spreader = Spreader(None, cfg)
+
+    data = pd.read_csv('fold_1/t.csv')
+    uid = 174
+    movies_to_activate = data[(data['UID'] == uid) & (data['rating'] >= 3)]['OID']
+    k = 50
     spreader.spread(movies_to_activate)
     spreader.log_results(k)
 

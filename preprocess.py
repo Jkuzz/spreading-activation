@@ -8,7 +8,7 @@ from timeit import default_timer as timer
 
 ML_VERSION = '1m'
 ML_LOCATION = f'./movielens/ml-{ML_VERSION}/movies.dat'
-TTL_FILE = f'./movielens/ml-{ML_VERSION}/imdb-{ML_VERSION}_2.ttl'
+TTL_FILE = f'./movielens/ml-{ML_VERSION}/imdb-{ML_VERSION}_3.ttl'
 
 
 def read_movielens(path, limit=sys.maxsize):

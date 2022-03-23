@@ -2,8 +2,6 @@ from os import path
 
 from rdflib import Graph, URIRef, Literal
 from rdflib.plugins.sparql import prepareQuery
-from timeit import default_timer as timer
-
 
 ML_VERSION = '1m'
 ML_LOCATION = f'./movielens/ml-{ML_VERSION}/movies.dat'
@@ -16,13 +14,17 @@ HAS_ACT_QUERY = prepareQuery('SELECT ?act WHERE {?node <https://example.org/hasA
 TRIPLES_QUERY = prepareQuery('SELECT ?p ?target WHERE {{ ?node ?p ?target } UNION {?target ?p ?node}}')
 
 
-def parse_graph():
-    if not path.isfile(TTL_FILE):
-        print(f'"{TTL_FILE}" not found')
+def parse_graph(ttl_file=TTL_FILE):
+    """
+    Reads a TTL graph from the disc
+    :return: rfdlib parsed graph
+    """
+    if not path.isfile(ttl_file):
+        print(f'"{ttl_file}" not found')
         exit()
-    print(f'ttl file found at "{TTL_FILE}"')
+    print(f'ttl file found at "{ttl_file}"')
     g = Graph()
-    g.parse(TTL_FILE)
+    g.parse(ttl_file)
     print('Graph parsed successfully')
     return g
 
@@ -47,19 +49,29 @@ class Spreader:
         )
 
     def update_cfg(self, cfg):
+        """
+        Update the hyperparameters of the spreader. Doing this and reseting activation is
+        faster than parsing the graph again
+        :param cfg: new configuration dict
+        """
         self.edge_weights = cfg['edge_weights']
         self.decay_factor = cfg['decay_factor']
         self.activation_threshold = cfg['activation_threshold']
 
-    def spread(self, movies_to_activate):
+    def spread(self, movies_to_activate, spread_steps=2):
+        """
+        Resets graph activation and performs spreading activation
+        :param spread_steps: how many steps of spreading activation to perform
+        :param movies_to_activate: list of movielens OIDs of movies to activate initially
+        """
         uris_to_spread = self.ml_initial_activation(movies_to_activate, reset=True)
         already_spread = set()
         self.initial_uris = set()
         for uri in uris_to_spread:
             self.initial_uris.add(uri)
             already_spread.add(uri)
-        uris_to_spread = self.spread_step(uris_to_spread, already_spread)
-        uris_to_spread = self.spread_step(uris_to_spread, already_spread)
+        for _ in range(spread_steps):
+            uris_to_spread = self.spread_step(uris_to_spread, already_spread)
 
     def spread_step(self, nodes_to_spread, already_spread):
         """
@@ -102,6 +114,11 @@ class Spreader:
             print(f'[{str(ml_oid)}]:\t{str(movie)}: {activation}')
 
     def get_top_k(self, k):
+        """
+        Returns list of most activated items that were not in the initial activation set
+        :param k: How many recommended items to get
+        :return: list of recommended items (movie uri, ml OID, activation)
+        """
         return self.graph.query(  # Query not prepared as this is not called often
             f'''
             SELECT ?mov ?mloid ?act
@@ -133,7 +150,7 @@ class Spreader:
             WHERE {{ ?s a ?p }}            
             ''')
         for uri in uris_to_activate:
-            self.set_activation(uri, INIT_ACTIVATION)
+            self.set_activation(uri, INIT_ACTIVATION)  # this is faster than a SPARQL query
         return uris_to_activate
 
     def ml_initial_activation(self, oids_to_activate, reset=False):
