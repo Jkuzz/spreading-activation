@@ -15,6 +15,7 @@ def log_cfg(cfg):
 
 spreader = Spreader()
 data = pd.read_csv('fold_1/t.csv')
+val_data = pd.read_csv('fold_1/val.csv')
 
 
 def rate_for_uid(uid, k=50):
@@ -22,23 +23,21 @@ def rate_for_uid(uid, k=50):
     spreader.spread(movies_to_activate)
     top_k = spreader.get_top_k_as_list(k)
     recs = np.array([int(rec[1]) for rec in top_k])
-    val_data = pd.read_csv('fold_1/val.csv')
-    run_ndcg = ndcg(val_data, uid, recs, top_k=k)
+    run_ndcg = ndcg(uid, recs, top_k=k)
     return run_ndcg
 
 
 def spread_and_rate(cfg):
     log_cfg(cfg)
     spreader.update_cfg(cfg)
-    uids = [173, 1234, 1000, 5]  # change these randomly? idk
+    uids = [30, 112, 234, 1111, 1234]  # change these maybe
 
     total_ndcg = 0
     for uid in uids:
-        total_ndcg += rate_for_uid(spreader, uid)
+        total_ndcg += rate_for_uid(uid)
     total_ndcg /= len(uids)
     mlflow.log_metric('ndcg', total_ndcg)
     print(f'NDCG: {total_ndcg}')
-
     return total_ndcg
 
 
@@ -61,7 +60,7 @@ def main():
     spread_and_rate(cfg)
 
 
-def ndcg(val_data, uid, recs, top_k=20):
+def ndcg(uid, recs, top_k=20):
     user_data = val_data.loc[val_data.UID == uid]
     recs = recs[:top_k]
     dcg_penalty = 1 / np.log2(np.array(range(top_k)) + 2)
