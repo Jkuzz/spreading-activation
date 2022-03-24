@@ -30,28 +30,19 @@ def parse_graph(ttl_file=TTL_FILE):
 
 
 class Spreader:
-    def __init__(self, graph, cfg):
+    def __init__(self, graph=None):
         if not graph:
             self.graph = parse_graph()
         else:
             self.graph = graph
-        self.edge_weights = cfg['edge_weights']
-        self.decay_factor = cfg['decay_factor']
-        self.activation_threshold = cfg['activation_threshold']
+        self.edge_weights = None
+        self.decay_factor = None
+        self.activation_threshold = None
         self.initial_uris = None
-        self.ACTIVATION_QUERY = prepareQuery(
-            f'''
-            SELECT ?node
-            WHERE {{ 
-                ?node <https://example.org/hasActivation> ?act
-                FILTER (?act > {self.activation_threshold})
-            }}'''
-        )
 
     def update_cfg(self, cfg):
         """
-        Update the hyperparameters of the spreader. Doing this and reseting activation is
-        faster than parsing the graph again
+        Set/Update the hyperparameters of the spreader.
         :param cfg: new configuration dict
         """
         self.edge_weights = cfg['edge_weights']
@@ -64,6 +55,9 @@ class Spreader:
         :param spread_steps: how many steps of spreading activation to perform
         :param movies_to_activate: list of movielens OIDs of movies to activate initially
         """
+        if not self.edge_weights:
+            print("spreader used before cfg was provided")
+            return None
         uris_to_spread = self.ml_initial_activation(movies_to_activate, reset=True)
         already_spread = set()
         self.initial_uris = set()

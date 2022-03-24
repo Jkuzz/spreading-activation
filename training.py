@@ -1,7 +1,45 @@
 import numpy as np
 import pandas as pd
+import mlflow
 
 from spreading_activation import Spreader
+
+
+def log_cfg(cfg):
+    for key, value in cfg.items():
+        if type(value) is dict:
+            log_cfg(value)
+        else:
+            mlflow.log_param(str(key).split('/')[-1], value)
+
+
+spreader = Spreader()
+data = pd.read_csv('fold_1/t.csv')
+
+
+def rate_for_uid(uid, k=50):
+    movies_to_activate = data[(data['UID'] == uid) & (data['rating'] >= 3)]['OID']
+    spreader.spread(movies_to_activate)
+    top_k = spreader.get_top_k_as_list(k)
+    recs = np.array([int(rec[1]) for rec in top_k])
+    val_data = pd.read_csv('fold_1/val.csv')
+    run_ndcg = ndcg(val_data, uid, recs, top_k=k)
+    return run_ndcg
+
+
+def spread_and_rate(cfg):
+    log_cfg(cfg)
+    spreader.update_cfg(cfg)
+    uids = [173, 1234, 1000, 5]  # change these randomly? idk
+
+    total_ndcg = 0
+    for uid in uids:
+        total_ndcg += rate_for_uid(spreader, uid)
+    total_ndcg /= len(uids)
+    mlflow.log_metric('ndcg', total_ndcg)
+    print(f'NDCG: {total_ndcg}')
+
+    return total_ndcg
 
 
 def main():
@@ -20,24 +58,11 @@ def main():
             'https://schema.org/inLanguage': 0.3,
         }
     }
-    spreader = Spreader(None, cfg)
-
-    data = pd.read_csv('fold_1/t.csv')
-    uid = 174
-    movies_to_activate = data[(data['UID'] == uid) & (data['rating'] >= 3)]['OID']
-    k = 50
-    spreader.spread(movies_to_activate)
-    spreader.log_results(k)
-
-    top_k = spreader.get_top_k_as_list(k)
-    recs = np.array([int(rec[1]) for rec in top_k])
-
-    val_data = pd.read_csv('fold_1/val.csv')
-    print(f'NDCG: {ndcg(val_data, uid, recs, top_k=k)}')
+    spread_and_rate(cfg)
 
 
-def ndcg(data, uid, recs, top_k=20):
-    user_data = data.loc[data.UID == uid]
+def ndcg(val_data, uid, recs, top_k=20):
+    user_data = val_data.loc[val_data.UID == uid]
     recs = recs[:top_k]
     dcg_penalty = 1 / np.log2(np.array(range(top_k)) + 2)
 
