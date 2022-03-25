@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import mlflow
+from hyperopt import hp, fmin, tpe
 
 from spreading_activation import Spreader
 
@@ -28,36 +29,37 @@ def rate_for_uid(uid, k=50):
 
 
 def spread_and_rate(cfg):
-    log_cfg(cfg)
-    spreader.update_cfg(cfg)
-    uids = [30, 112, 234, 1111, 1234]  # change these maybe
+    with mlflow.start_run():
+        log_cfg(cfg)
+        spreader.update_cfg(cfg)
+        uids = [30, 112, 234, 1111, 1234]  # change these maybe? idk
 
-    total_ndcg = 0
-    for uid in uids:
-        total_ndcg += rate_for_uid(uid)
-    total_ndcg /= len(uids)
-    mlflow.log_metric('ndcg', total_ndcg)
-    print(f'NDCG: {total_ndcg}')
+        total_ndcg = 0
+        for uid in uids:
+            total_ndcg += rate_for_uid(uid)
+        total_ndcg /= len(uids)
+        mlflow.log_metric('ndcg', total_ndcg)
     return total_ndcg
 
 
 def main():
-    cfg = {  # TODO: tune this
-        'activation_threshold': 0.2,  # Minimum activation a node needs to spread
-        'decay_factor': 0.1,  # What part of the activation will survive the spread
+    cfg_space = {
+        'activation_threshold': hp.uniform('activation_threshold', 0.05, 0.5),  # Min activation a node needs to spread
+        'decay_factor': hp.uniform('decay_factor', 0.05, 0.5),  # What part of the activation will survive the spread
         'edge_weights': {  # Proportional amount of activation that will flow along the edge
-            'https://example.org/fromDecade': 0.2,
-            'https://schema.org/Actor': 0.4,
-            'https://schema.org/Director': 0.7,
-            'https://schema.org/Writer': 0.2,
-            'https://schema.org/Producer': 0.2,
-            'https://schema.org/Editor': 0.1,
-            'https://schema.org/Genre': 0.7,
-            'https://schema.org/CountryOfOrigin': 0.5,
-            'https://schema.org/inLanguage': 0.3,
+            'https://example.org/fromDecade': hp.uniform('fromDecade', 0.1, 0.8),
+            'https://schema.org/Actor': hp.uniform('Actor', 0.1, 0.8),
+            'https://schema.org/Director': hp.uniform('Director', 0.1, 0.8),
+            'https://schema.org/Writer': hp.uniform('Writer', 0.1, 0.8),
+            'https://schema.org/Producer': hp.uniform('Producer', 0.1, 0.8),
+            'https://schema.org/Editor': hp.uniform('Editor', 0.1, 0.8),
+            'https://schema.org/Genre': hp.uniform('Genre', 0.1, 0.8),
+            'https://schema.org/CountryOfOrigin': hp.uniform('CountryOfOrigin', 0.1, 0.8),
+            'https://schema.org/inLanguage': hp.uniform('inLanguage', 0.1, 0.8),
         }
     }
-    spread_and_rate(cfg)
+    best = fmin(fn=spread_and_rate, space=cfg_space, algo=tpe.suggest, max_evals=100)
+    print(best)
 
 
 def ndcg(uid, recs, top_k=20):
