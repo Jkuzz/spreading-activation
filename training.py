@@ -17,6 +17,7 @@ def log_cfg(cfg):
 spreader = Spreader()
 data = pd.read_csv('fold_1/t.csv')
 val_data = pd.read_csv('fold_1/val.csv')
+uids = [30, 112, 234, 1111, 1234]  # change these maybe? idk
 
 
 def rate_for_uid(uid, k=50):
@@ -32,30 +33,28 @@ def spread_and_rate(cfg):
     with mlflow.start_run():
         log_cfg(cfg)
         spreader.update_cfg(cfg)
-        uids = [30, 112, 234, 1111, 1234]  # change these maybe? idk
-
         total_ndcg = 0
         for uid in uids:
             total_ndcg += rate_for_uid(uid)
         total_ndcg /= len(uids)
         mlflow.log_metric('ndcg', total_ndcg)
-    return total_ndcg
+    return 1 - total_ndcg
 
 
 def main():
     cfg_space = {
-        'activation_threshold': hp.uniform('activation_threshold', 0.05, 0.5),  # Min activation a node needs to spread
-        'decay_factor': hp.uniform('decay_factor', 0.05, 0.5),  # What part of the activation will survive the spread
+        'activation_threshold': hp.uniform('activation_threshold', 0.3, 0.75),  # Min activation a node needs to spread
+        'decay_factor': hp.uniform('decay_factor', 0.01, 0.2),  # What part of the activation will survive the spread
         'edge_weights': {  # Proportional amount of activation that will flow along the edge
-            'https://example.org/fromDecade': hp.uniform('fromDecade', 0.1, 0.8),
-            'https://schema.org/Actor': hp.uniform('Actor', 0.1, 0.8),
-            'https://schema.org/Director': hp.uniform('Director', 0.1, 0.8),
-            'https://schema.org/Writer': hp.uniform('Writer', 0.1, 0.8),
+            'https://example.org/fromDecade': hp.uniform('fromDecade', 0.1, 0.7),
+            'https://schema.org/Actor': hp.uniform('Actor', 0.2, 0.8),
+            'https://schema.org/Director': hp.uniform('Director', 0.05, 0.4),
+            'https://schema.org/Writer': hp.uniform('Writer', 0.3, 0.9),
             'https://schema.org/Producer': hp.uniform('Producer', 0.1, 0.8),
-            'https://schema.org/Editor': hp.uniform('Editor', 0.1, 0.8),
-            'https://schema.org/Genre': hp.uniform('Genre', 0.1, 0.8),
-            'https://schema.org/CountryOfOrigin': hp.uniform('CountryOfOrigin', 0.1, 0.8),
-            'https://schema.org/inLanguage': hp.uniform('inLanguage', 0.1, 0.8),
+            'https://schema.org/Editor': hp.uniform('Editor', 0.1, 0.4),
+            'https://schema.org/Genre': hp.uniform('Genre', 0.1, 0.6),
+            'https://schema.org/CountryOfOrigin': hp.uniform('CountryOfOrigin', 0.1, 0.7),
+            'https://schema.org/inLanguage': hp.uniform('inLanguage', 0.4, 0.8),
         }
     }
     best = fmin(fn=spread_and_rate, space=cfg_space, algo=tpe.suggest, max_evals=100)
