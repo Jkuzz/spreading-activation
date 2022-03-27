@@ -7,6 +7,9 @@ from spreading_activation import Spreader
 
 
 def log_cfg(cfg):
+    """
+    Log config to MLFlow
+    """
     for key, value in cfg.items():
         if type(value) is dict:
             log_cfg(value)
@@ -14,13 +17,13 @@ def log_cfg(cfg):
             mlflow.log_param(str(key).split('/')[-1], value)
 
 
-spreader = Spreader()
-data = pd.read_csv('fold_1/t.csv')
-val_data = pd.read_csv('fold_1/val.csv')
-uids = [30, 112, 234, 1111, 1234]  # change these maybe? idk
-
-
 def rate_for_uid(uid, k=50):
+    """
+    Recommends to user and checks rec quality with NDCG
+    :param uid: user id to recommend to
+    :param k: how many recs to get
+    :return: NDCG of recommendations
+    """
     movies_to_activate = data[(data['UID'] == uid) & (data['rating'] >= 3)]['OID']
     spreader.spread(movies_to_activate)
     top_k = spreader.get_top_k_as_list(k)
@@ -30,15 +33,28 @@ def rate_for_uid(uid, k=50):
 
 
 def spread_and_rate(cfg):
+    """
+    Recommends and rates with given config and returns 1-average NDCG of recommendations.
+    Use this for fmin.
+    :param cfg: config dict for spreader
+    :return: 1-NDCG for minimisation function
+    """
     with mlflow.start_run():
         log_cfg(cfg)
         spreader.update_cfg(cfg)
         total_ndcg = 0
-        for uid in uids:
-            total_ndcg += rate_for_uid(uid)
+        for i, uid in enumerate(uids):
+            total_ndcg += rate_for_uid(uid, 20)
         total_ndcg /= len(uids)
         mlflow.log_metric('ndcg', total_ndcg)
     return 1 - total_ndcg
+
+
+# uids = [30, 112, 234, 1111, 1234]  # change these maybe? idk
+uids = [31, 111, 235, 1112, 1231]  # change these maybe? idk
+spreader = Spreader()
+data = pd.read_csv('fold_1/t.csv')
+val_data = pd.read_csv('fold_1/val.csv')
 
 
 def main():
@@ -48,12 +64,12 @@ def main():
         'edge_weights': {  # Proportional amount of activation that will flow along the edge
             'https://example.org/fromDecade': hp.uniform('fromDecade', 0.1, 0.7),
             'https://schema.org/Actor': hp.uniform('Actor', 0.2, 0.8),
-            'https://schema.org/Director': hp.uniform('Director', 0.05, 0.4),
+            'https://schema.org/Director': hp.uniform('Director', 0.1, 0.4),
             'https://schema.org/Writer': hp.uniform('Writer', 0.3, 0.9),
             'https://schema.org/Producer': hp.uniform('Producer', 0.1, 0.8),
-            'https://schema.org/Editor': hp.uniform('Editor', 0.1, 0.4),
-            'https://schema.org/Genre': hp.uniform('Genre', 0.1, 0.6),
-            'https://schema.org/CountryOfOrigin': hp.uniform('CountryOfOrigin', 0.1, 0.7),
+            'https://schema.org/Editor': hp.uniform('Editor', 0.15, 0.5),
+            'https://schema.org/Genre': hp.uniform('Genre', 0.1, 0.5),
+            'https://schema.org/CountryOfOrigin': hp.uniform('CountryOfOrigin', 0.15, 0.5),
             'https://schema.org/inLanguage': hp.uniform('inLanguage', 0.4, 0.8),
         }
     }
@@ -68,7 +84,6 @@ def ndcg(uid, recs, top_k=20):
 
     ideal = user_data.rating.sort_values(ascending=False).values[:top_k]
     if len(ideal) > 0:
-        # print(ideal, len(ideal), np.array(dcg_penalty[:len(ideal)]) )
         idcg = (ideal * dcg_penalty[:len(ideal)]).sum()
         user_data.set_index("OID", inplace=True)
         recs_relevant = [user_data.rating[i] if i in user_data.index else 0 for i in recs]

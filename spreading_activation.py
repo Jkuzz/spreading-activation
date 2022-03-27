@@ -12,6 +12,21 @@ INIT_ACTIVATION = 1  # Activation given to initial set of nodes
 
 HAS_ACT_QUERY = prepareQuery('SELECT ?act WHERE {?node <https://example.org/hasActivation> ?act}')
 TRIPLES_QUERY = prepareQuery('SELECT ?p ?target WHERE {{ ?node ?p ?target } UNION {?target ?p ?node}}')
+DEFAULT_CFG = {
+        'activation_threshold': 0.31649221592381765,
+        'decay_factor': 0.1068994469731867,
+        'edge_weights': {  # Proportional amount of activation that will flow along the edge
+            'https://example.org/fromDecade': 0.21802592960018782,
+            'https://schema.org/Actor': 0.7099285518684758,
+            'https://schema.org/Director': 0.3683726597328457,
+            'https://schema.org/Writer': 0.5424443369826616,
+            'https://schema.org/Producer': 0.7980341978743082,
+            'https://schema.org/Editor': 0.42905888133528514,
+            'https://schema.org/Genre': 0.13658013467165064,
+            'https://schema.org/CountryOfOrigin': 0.33552755021787994,
+            'https://schema.org/inLanguage': 0.6412984290406345,
+        }
+    }
 
 
 def parse_graph(ttl_file=TTL_FILE):
@@ -35,9 +50,9 @@ class Spreader:
             self.graph = parse_graph()
         else:
             self.graph = graph
-        self.edge_weights = None
-        self.decay_factor = None
-        self.activation_threshold = None
+        self.edge_weights = DEFAULT_CFG['edge_weights']
+        self.decay_factor = DEFAULT_CFG['decay_factor']
+        self.activation_threshold = DEFAULT_CFG['activation_threshold']
         self.initial_uris = None
 
     def update_cfg(self, cfg):
