@@ -42,7 +42,7 @@ created into the final graph. The algorithm creates graph nodes for each of the 
 The initial parsing takes around 15-20 seconds due to the size of the graph, the subsequent activation roughly the same. If you need to perform multiple
 SA, use thesame spreader object, the graph will reset its previous activations much faster than parsing again.
  
-#### The spreader config
+### The spreader config
 The config dictionary is used to pass hyperparameters for the spreading activation. The values to set are the following
   - `activation_threshold`: How much activation a node needs to spread
   - `decay_factor`: What percentage of activation arrives at the destination node
@@ -66,7 +66,8 @@ probably being rotated. Due to time constraints I did not do that. Validation da
 During training, I activated movies that recieved a rating of 3 or more (line 27). This could also be considered a hyperparameter, but I didn't tune it.
 Maybe consider using 4 or 5 as a threshold?
 
-
+Hyperopt's [`fmin`](https://github.com/hyperopt/hyperopt/wiki/FMin) function is what performs the tuning. I pass it the `spread_and_rate` function, which 
+oversees logging, spreading and rating for the selected UIDs. For each UID, `rate_for_uid` is what performs the individual recommendation and rating.
 
 
 
