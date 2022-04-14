@@ -171,18 +171,27 @@ def save_graph(graph, filename):
 
 
 def main():
-    if os.path.isfile(TTL_FILE):
-        print(f'TTL file already exists at {TTL_FILE}, to run this script, change path or delete the file')
+    if len(sys.argv) > 1:
+        ml_location = sys.argv[1]
+    else:
+        ml_location = ML_LOCATION
+    if len(sys.argv) > 1:
+        ttl_file = sys.argv[0]
+    else:
+        ttl_file = TTL_FILE
+
+    if os.path.isfile(ttl_file):
+        print(f'TTL file already exists at {ttl_file}, to run this script, change path or delete the file')
         exit()
-    print(f'Reading movielens from "{ML_LOCATION}"...')
-    ml_movies = read_movielens(ML_LOCATION)
+    print(f'Reading movielens from "{ml_location}"...')
+    ml_movies = read_movielens(ml_location)
     print(f'Read {len(ml_movies)} movies.')
     print('Fetching movie info using Cinemagoer...')
     found_movies = fetch_movies(ml_movies)
     print(f'IMDB info loaded, serialising to RDF...')
     graph = rdf_serialise(found_movies)
-    print(f'RDF serialisation complete, saving to {TTL_FILE}...')
-    save_graph(graph, TTL_FILE)
+    print(f'RDF serialisation complete, saving to {ttl_file}...')
+    save_graph(graph, ttl_file)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from rdflib import Graph, URIRef, Literal
 from rdflib.plugins.sparql import prepareQuery
 
 ML_VERSION = '1m'
-ML_LOCATION = f'./movielens/ml-{ML_VERSION}/movies.dat'
 TTL_FILE = f'./movielens/ml-{ML_VERSION}/imdb-{ML_VERSION}_2.ttl'
 MV_URI_PREFIX = 'https://www.imdb.com/title/tt'
 
@@ -45,11 +44,13 @@ def parse_graph(ttl_file=TTL_FILE):
 
 
 class Spreader:
-    def __init__(self, graph=None):
-        if not graph:
-            self.graph = parse_graph()
-        else:
+    def __init__(self, graph=None, ttl_file=None):
+        if graph:
             self.graph = graph
+        elif ttl_file:
+            self.graph = parse_graph(ttl_file=ttl_file)
+        else:
+            self.graph = parse_graph()
         self.edge_weights = DEFAULT_CFG['edge_weights']
         self.decay_factor = DEFAULT_CFG['decay_factor']
         self.activation_threshold = DEFAULT_CFG['activation_threshold']

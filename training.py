@@ -17,18 +17,20 @@ def log_cfg(cfg):
             mlflow.log_param(str(key).split('/')[-1], value)
 
 
-def rate_for_uid(uid, k=50):
+def rate_for_uid(split_train, split_val, uid, k=50):
     """
     Recommends to user and checks rec quality with NDCG
+    :param split_train: data split to initially activate with
+    :param split_val: data split to evaluate ndcg with
     :param uid: user id to recommend to
     :param k: how many recs to get
     :return: NDCG of recommendations
     """
-    movies_to_activate = data[(data['UID'] == uid) & (data['rating'] >= 3)]['OID']
+    movies_to_activate = split_train[(split_train['UID'] == uid) & (split_train['rating'] >= 3)]['OID']
     spreader.spread(movies_to_activate)
     top_k = spreader.get_top_k_as_list(k)
     recs = np.array([int(rec[1]) for rec in top_k])
-    run_ndcg = ndcg(uid, recs, top_k=k)
+    run_ndcg = ndcg(split_val, uid, recs, top_k=k)
     return run_ndcg
 
 
@@ -43,8 +45,11 @@ def spread_and_rate(cfg):
         log_cfg(cfg)
         spreader.update_cfg(cfg)
         total_ndcg = 0
+        # Cross validate here V
+        split_train = data
+        split_val = val_data
         for i, uid in enumerate(uids):
-            total_ndcg += rate_for_uid(uid, 20)
+            total_ndcg += rate_for_uid(split_train, split_val, uid, 20)
         total_ndcg /= len(uids)
         mlflow.log_metric('ndcg', total_ndcg)
     return 1 - total_ndcg
@@ -77,8 +82,8 @@ def main():
     print(best)
 
 
-def ndcg(uid, recs, top_k=20):
-    user_data = val_data.loc[val_data.UID == uid]
+def ndcg(split_val, uid, recs, top_k=20):
+    user_data = split_val.loc[val_data.UID == uid]
     recs = recs[:top_k]
     dcg_penalty = 1 / np.log2(np.array(range(top_k)) + 2)
 
