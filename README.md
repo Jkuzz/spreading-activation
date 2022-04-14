@@ -22,7 +22,10 @@ created into the final graph. The algorithm creates graph nodes for each of the 
   - Decade
  
  To run this step, place your movielens file (or movies you wantto use in the same format) in the file specified by the `ML_LOCATION` and `ML_VERSION` constants
- (when making this I didn't plan to do it more than once :) ). Run it using `python preprocess.py` Next, go outside for three hours, it takes a while.
+ (when making this I didn't plan to do it more than once :) ). Run it using `python preprocess.py [ttl_file] [ml_loc]` where the optional arguments
+ `ttl_file` change the default graph serialisation save file and `ml_loc` change the default movielens file location.
+ 
+ Next, go outside for three hours, it takes a while.
  This is mostly due to the Cinemagoer double movie querying, because the initial search does not provide the full information, so it has to be done twice. 
  
  I would recommend you skip this step if possible and use the graph in `movielens/ml-1m/imdb-1m_2.ttl`.
@@ -31,12 +34,12 @@ created into the final graph. The algorithm creates graph nodes for each of the 
  Happens in `spreading_activation.py`.
  
  Uses the `Spreader` class, which parses the graph created in step 1 and performs SA on it. To use the spreader:
-  1. (edit the ttl file location if not using default)
-  2. create new `Spreader` instance
-  3. Set config if not using default using `Spreader.update_cfg(config)` (this is mostly for tuning)
-  4. Prepare ids of movies to activate into list (using movielens id)
-  5. Perform spreading using `Spreader.spread(movies_to_activate)`
-  6. Get top_k results using `Spreader.get_top_k_as_list(k)`
+  1. create new `Spreader` instance
+    - Add parsed graph or graph file location as parameter if not using default
+  2. Set config if not using default using `Spreader.update_cfg(config)` (this is mostly for tuning)
+  3. Prepare ids of movies to activate into list (using movielens id)
+  4. Perform spreading using `Spreader.spread(movies_to_activate)`
+  5. Get top_k results using `Spreader.get_top_k_as_list(k)`
     - Alternatively log using `Spreader.log_results(k)`
 
 The initial parsing takes around 15-20 seconds due to the size of the graph, the subsequent activation roughly the same. If you need to perform multiple
@@ -60,8 +63,11 @@ Training used hyperopt's random search using uniform distribution on each value 
 Runs are logged using MLflow for each config. To get `runs.csv` for your new runs, go to MLflow UI and download csv there (or another way but this is how I did it).
 To get more than the default 100 you have to select more runs.
 
+To fix a dimension of `cfg_space`, just replace the hp distribution with a number literal.
+
 The hyperparams were trained on only a few UIDs. This is not ideal and ideally they should be trained on a significantly larger set of UIDs,
 probably being rotated. Due to time constraints I did not do that. Validation data only used one fold, again, ideally use proper cross validation.
+For CV, [this approach](https://www.kaggle.com/code/ilialar/hyperparameters-tunning-with-hyperopt/notebook) might work if used in `spread_and_rate`.
 
 During training, I activated movies that recieved a rating of 3 or more (line 27). This could also be considered a hyperparameter, but I didn't tune it.
 Maybe consider using 4 or 5 as a threshold?
