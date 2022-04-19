@@ -21,9 +21,8 @@ created into the final graph. The algorithm creates graph nodes for each of the 
   - Country of origin
   - Decade
  
- To run this step, place your movielens file (or movies you wantto use in the same format) in the file specified by the `ML_LOCATION` and `ML_VERSION` constants
- (when making this I didn't plan to do it more than once :) ). Run it using `python preprocess.py [ttl_file] [ml_loc]` where the optional arguments
- `ttl_file` change the default graph serialisation save file and `ml_loc` change the default movielens file location.
+ To run this step, useg `python preprocess.py [ttl_file] [ml_loc]` where the optional arguments
+ `ttl_file` change the default graph save file and `ml_loc` change the default movielens file location.
  
  Next, go outside for three hours, it takes a while.
  This is mostly due to the Cinemagoer double movie querying, because the initial search does not provide the full information, so it has to be done twice. 
@@ -36,14 +35,14 @@ created into the final graph. The algorithm creates graph nodes for each of the 
  Uses the `Spreader` class, which parses the graph created in step 1 and performs SA on it. To use the spreader:
   1. create new `Spreader` instance
     - Add parsed graph or graph file location as parameter if not using default
-  2. Set config if not using default using `Spreader.update_cfg(config)` (this is mostly for tuning)
-  3. Prepare ids of movies to activate into list (using movielens id)
-  4. Perform spreading using `Spreader.spread(movies_to_activate)`
-  5. Get top_k results using `Spreader.get_top_k_as_list(k)`
+    - Set config if not using default using `Spreader.update_cfg(config)` (this is mostly for tuning)
+  2. Prepare ids of movies to activate into list (using movielens id)
+  3. Perform SA using `Spreader.spread(movies_to_activate)`
+  4. Get top_k results using `Spreader.get_top_k_as_list(k)`
     - Alternatively log using `Spreader.log_results(k)`
 
 The initial parsing takes around 15-20 seconds due to the size of the graph, the subsequent activation roughly the same. If you need to perform multiple
-SA, use thesame spreader object, the graph will reset its previous activations much faster than parsing again.
+SA, use the same spreader object, the graph will reset its previous activations much faster than parsing again.
  
 ### The spreader config
 The config dictionary is used to pass hyperparameters for the spreading activation. The values to set are the following
